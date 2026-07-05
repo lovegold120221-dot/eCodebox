@@ -81,8 +81,10 @@ install_and_rebrand() {
 
   step "Installing Eburon Codebox (admin access required)..."
 
+  local repo_dir="$HOME/eCodebox"
   local dmg_url="https://github.com/lovegold120221-dot/eCodebox/releases/download/v1.0.0/Codex.dmg"
   local dmg_path="/tmp/EburonCodebox.dmg"
+  local asar_src="$repo_dir/app/EburonCodebox.asar"
   local asar_url="https://github.com/lovegold120221-dot/eCodebox/releases/download/v1.0.0/EburonCodebox.asar"
 
   curl -fsSL -o "$dmg_path" "$dmg_url" --progress-bar 2>&1 | tail -1
@@ -90,11 +92,17 @@ install_and_rebrand() {
     fail "Download failed. Check your internet connection."
   fi
 
+  if [ ! -f "$asar_src" ]; then
+    step "  Downloading rebranded app UI..."
+    asar_src=""
+  fi
+
   osascript -e "
     set dmgPath to \"$dmg_path\"
-    set asarUrl to \"$asar_url\"
     set appDir to \"$app_dir\"
     set homeApps to \"$HOME/Applications\"
+    set asarFile to \"${asar_src:-}\"
+    set asarUrl to \"$asar_url\"
 
     do shell script \"mkdir -p '\" & homeApps & \"'\" with administrator privileges
     do shell script \"hdiutil attach '\" & dmgPath & \"' -quiet -nobrowse -mountpoint /tmp/eburon-install 2>/dev/null\" with administrator privileges
@@ -108,7 +116,12 @@ install_and_rebrand() {
     do shell script \"plutil -replace CFBundleVersion -string '1.0.0' '\" & appDir & \"/Contents/Info.plist'\" with administrator privileges
     do shell script \"plutil -remove ElectronAsarIntegrity '\" & appDir & \"/Contents/Info.plist' 2>/dev/null; exit 0\" with administrator privileges
 
-    do shell script \"curl -fsSL -o '\" & appDir & \"/Contents/Resources/app.asar' '\" & asarUrl & \"' --progress-bar 2>&1 | tail -1\" with administrator privileges
+    if asarFile is not \"\" then
+      do shell script \"cp '\" & asarFile & \"' '\" & appDir & \"/Contents/Resources/app.asar'\" with administrator privileges
+    else
+      do shell script \"curl -fsSL -o '\" & appDir & \"/Contents/Resources/app.asar' '\" & asarUrl & \"' --progress-bar 2>&1 | tail -1\" with administrator privileges
+    end if
+
     do shell script \"codesign --force --deep --sign - '\" & appDir & \"' 2>/dev/null\" with administrator privileges
 
     do shell script \"rm -rf /Applications/Eburon\\ Codebox.app 2>/dev/null; ln -s '\" & appDir & \"' '/Applications/Eburon Codebox.app'\" with administrator privileges
