@@ -73,12 +73,8 @@ clone_repo() {
 }
 
 install_engine() {
-  if [ -d "/Applications/Eburon Codebox.app" ]; then
-    success "Eburon Codebox.app already installed"
-    return
-  fi
-  if [ -d "/Applications/Codex.app" ]; then
-    success "Engine already downloaded"
+  if [ -d "/codebox" ]; then
+    success "Eburon Codebox already installed at /codebox"
     return
   fi
   step "Installing Eburon Codebox engine..."
@@ -96,25 +92,37 @@ install_engine() {
 }
 
 rebrand() {
-  if [ -d "/Applications/Eburon Codebox.app" ]; then
+  if [ -d "/codebox" ]; then
     return
   fi
-  step "Configuring Eburon Codebox..."
-  cp -R "/Applications/Codex.app" "/Applications/Eburon Codebox.app"
-  plutil -replace CFBundleDisplayName -string "Eburon Codebox" "/Applications/Eburon Codebox.app/Contents/Info.plist"
-  plutil -replace CFBundleName -string "Eburon Codebox" "/Applications/Eburon Codebox.app/Contents/Info.plist"
-  plutil -replace CFBundleIdentifier -string "dev.eburon.codebox" "/Applications/Eburon Codebox.app/Contents/Info.plist"
-  plutil -replace CFBundleShortVersionString -string "1.0.0" "/Applications/Eburon Codebox.app/Contents/Info.plist"
-  plutil -replace CFBundleVersion -string "1.0.0" "/Applications/Eburon Codebox.app/Contents/Info.plist"
-  plutil -remove ElectronAsarIntegrity "/Applications/Eburon Codebox.app/Contents/Info.plist" 2>/dev/null || true
-  codesign --force --deep --sign - "/Applications/Eburon Codebox.app" 2>/dev/null
-  success "Eburon Codebox.app configured"
+  step "Configuring Eburon Codebox at /codebox..."
+  cp -R "/Applications/Codex.app" "/codebox"
+  plutil -replace CFBundleDisplayName -string "Eburon Codebox" "/codebox/Contents/Info.plist"
+  plutil -replace CFBundleName -string "Eburon Codebox" "/codebox/Contents/Info.plist"
+  plutil -replace CFBundleIdentifier -string "dev.eburon.codebox" "/codebox/Contents/Info.plist"
+  plutil -replace CFBundleShortVersionString -string "1.0.0" "/codebox/Contents/Info.plist"
+  plutil -replace CFBundleVersion -string "1.0.0" "/codebox/Contents/Info.plist"
+  plutil -remove ElectronAsarIntegrity "/codebox/Contents/Info.plist" 2>/dev/null || true
+  codesign --force --deep --sign - "/codebox" 2>/dev/null
+  rm -rf "/Applications/Codex.app"
+  ln -s "/codebox" "/Applications/Codex.app"
+  success "Eburon Codebox configured at /codebox"
 }
 
 install_eburon_command() {
   local dest="$HOME/.local/bin/eburon"
   mkdir -p "$HOME/.local/bin"
-  cp "$HOME/eCodebox/bin/eburon" "$dest"
+  cat > "$dest" << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+M="${EBURON_MODEL:-eburon-pro/autonomous}"
+echo -e "\033[0;36m\033[1m  ╔═══════════════════════════════════════════╗"
+echo "  ║     ⚡ Eburon Codebox — Eburon AI      ║"
+echo -e "  ╚═══════════════════════════════════════════╝\033[0m"
+echo "  Model: $M"
+echo ""
+ollama launch codex-app --model "$M"
+EOF
   chmod +x "$dest"
   success "eburon command installed"
 }
@@ -123,10 +131,11 @@ verify() {
   echo ""
   echo -e "${CYAN}${BOLD}  ─── Verification ───────────────────────────${NC}"
   local ok=true
-  [ -d "/Applications/Eburon Codebox.app" ] && success "Eburon Codebox.app: installed" || { warn "Eburon Codebox.app: missing"; ok=false; }
+  [ -d "/codebox" ] && success "Eburon Codebox at /codebox: installed" || { warn "/codebox: missing"; ok=false; }
+  [ -L "/Applications/Codex.app" ] && [ "$(readlink /Applications/Codex.app)" = "/codebox" ] && success "Symlink /Applications/Codex.app → /codebox: ok" || { warn "Symlink missing"; ok=false; }
   command -v ollama &>/dev/null && success "Ollama: installed" || { warn "Ollama: missing"; ok=false; }
   ollama list 2>/dev/null | grep -q "eburon-pro/autonomous" && success "Model eburon-pro/autonomous: pulled" || { warn "Model eburon-pro/autonomous: not pulled"; ok=false; }
-  command -v eburon &>/dev/null && success "eburon command: installed" || warn "eburon command: not in PATH (run: export PATH=\"\$HOME/.local/bin:\$PATH\")"
+  command -v eburon &>/dev/null && success "eburon command: installed" || warn "eburon command: not in PATH"
   echo ""
   if $ok; then
     echo -e "${GREEN}${BOLD}  ✅ Installation complete!${NC}"
