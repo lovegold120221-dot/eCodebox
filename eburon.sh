@@ -71,16 +71,22 @@ install_engine() {
     return
   fi
   step "Downloading Eburon Codebox engine..."
-  open "https://codex.ai/download"
-  echo -e "  ${YELLOW}A download page opened in your browser.${NC}"
-  echo -e "  ${YELLOW}Install the app, then press Enter.${NC}"
-  read -p "" < /dev/tty
+  npx --yes codex app >/dev/null 2>&1 &
+  local npx_pid=$!
+  # Wait up to 30 seconds for the download
+  for i in $(seq 1 30); do
+    sleep 1
+    if [ -d "/Applications/Codex.app" ]; then
+      break
+    fi
+  done
+  kill $npx_pid 2>/dev/null || true
   if [ ! -d "/Applications/Codex.app" ]; then
-    echo -e "  ${YELLOW}Still not found. Try downloading manually,${NC}"
-    echo -e "  ${YELLOW}then press Enter again.${NC}"
+    open "https://codex.ai/download"
+    echo -e "  ${YELLOW}Download page opened. Install the app, then press Enter.${NC}"
     read -p "" < /dev/tty
     if [ ! -d "/Applications/Codex.app" ]; then
-      fail "App not found. Download from the link and re-run."
+      fail "App not found. Download from https://codex.ai/download and re-run."
     fi
   fi
   success "Engine downloaded"
