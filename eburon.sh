@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+exec < /dev/tty
 
 # ═══════════════════════════════════════════════════════════════
 # Eburon Codebox — One-Click Installer
@@ -73,11 +74,11 @@ install_engine() {
   open "https://codex.ai/download"
   echo -e "  ${YELLOW}A download page opened in your browser.${NC}"
   echo -e "  ${YELLOW}Install the app, then press Enter.${NC}"
-  read -p ""
+  read -p "" < /dev/tty
   if [ ! -d "/Applications/Codex.app" ]; then
     echo -e "  ${YELLOW}Still not found. Try downloading manually,${NC}"
     echo -e "  ${YELLOW}then press Enter again.${NC}"
-    read -p ""
+    read -p "" < /dev/tty
     if [ ! -d "/Applications/Codex.app" ]; then
       fail "App not found. Download from the link and re-run."
     fi
