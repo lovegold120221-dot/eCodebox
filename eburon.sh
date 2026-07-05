@@ -13,17 +13,6 @@ success() { echo -e "${GREEN}  ✓${NC} $1"; }
 warn()    { echo -e "${YELLOW}  ⚠${NC} $1"; }
 fail()    { echo -e "${RED}  ✗${NC} $1"; exit 1; }
 
-ensure_sudo() {
-  step "Requesting admin access..."
-  if sudo -v; then
-    # Keep sudo alive in background
-    while true; do sudo -n true; sleep 60; kill -0 "$$" 2>/dev/null || exit; done 2>/dev/null &
-    success "Admin access granted"
-  else
-    fail "Admin access required to install at /codebox."
-  fi
-}
-
 banner() {
   echo -e "${CYAN}${BOLD}"
   echo "  ╔═══════════════════════════════════════════╗"
@@ -83,47 +72,53 @@ clone_repo() {
   success "eCodebox repo cloned to $repo_dir"
 }
 
-install_engine() {
-  if [ -d "/codebox" ]; then
-    success "Eburon Codebox already installed at /codebox"
+install_and_rebrand() {
+  local app_dir="$HOME/Applications/Eburon Codebox.app"
+  if [ -d "$app_dir" ]; then
+    success "Eburon Codebox already installed at $app_dir"
     return
   fi
-  step "Installing Eburon Codebox engine..."
+
+  step "Installing Eburon Codebox (admin access required)..."
+
   local dmg_url="https://github.com/lovegold120221-dot/eCodebox/releases/download/v1.0.0/Codex.dmg"
   local dmg_path="/tmp/EburonCodebox.dmg"
+  local asar_url="https://github.com/lovegold120221-dot/eCodebox/releases/download/v1.0.0/EburonCodebox.asar"
+
   curl -fsSL -o "$dmg_path" "$dmg_url" --progress-bar 2>&1 | tail -1
   if [ ! -f "$dmg_path" ] || [ "$(stat -f%z "$dmg_path" 2>/dev/null)" -lt 100000000 ]; then
     fail "Download failed. Check your internet connection."
   fi
-  hdiutil attach "$dmg_path" -quiet -nobrowse -mountpoint /tmp/eburon-install 2>/dev/null
-  sudo cp -R "/tmp/eburon-install/Codex.app" /Applications/Codex.app
-  hdiutil detach /tmp/eburon-install -quiet 2>/dev/null
-  rm -f "$dmg_path"
-  if [ ! -d "/Applications/Codex.app" ]; then
-    fail "Installation failed."
-  fi
-  success "Engine installed"
-}
 
-rebrand() {
-  if [ -d "/codebox" ]; then
-    return
-  fi
-  step "Configuring Eburon Codebox at /codebox..."
-  sudo cp -R "/Applications/Codex.app" "/codebox"
-  sudo plutil -replace CFBundleDisplayName -string "Eburon Codebox" "/codebox/Contents/Info.plist"
-  sudo plutil -replace CFBundleName -string "Eburon Codebox" "/codebox/Contents/Info.plist"
-  sudo plutil -replace CFBundleIdentifier -string "dev.eburon.codebox" "/codebox/Contents/Info.plist"
-  sudo plutil -replace CFBundleShortVersionString -string "1.0.0" "/codebox/Contents/Info.plist"
-  sudo plutil -replace CFBundleVersion -string "1.0.0" "/codebox/Contents/Info.plist"
-  sudo plutil -remove ElectronAsarIntegrity "/codebox/Contents/Info.plist" 2>/dev/null || true
-  step "  Applying Eburon Codebox UI..."
-  local asar_url="https://github.com/lovegold120221-dot/eCodebox/releases/download/v1.0.0/EburonCodebox.asar"
-  sudo curl -fsSL -o "/codebox/Contents/Resources/app.asar" "$asar_url" --progress-bar 2>&1 | tail -1
-  sudo codesign --force --deep --sign - "/codebox" 2>/dev/null
-  sudo rm -rf "/Applications/Codex.app"
-  sudo ln -s "/codebox" "/Applications/Codex.app"
-  success "Eburon Codebox configured at /codebox"
+  osascript -e "
+    set dmgPath to \"$dmg_path\"
+    set asarUrl to \"$asar_url\"
+    set appDir to \"$app_dir\"
+    set homeApps to \"$HOME/Applications\"
+
+    do shell script \"mkdir -p '\" & homeApps & \"'\" with administrator privileges
+    do shell script \"hdiutil attach '\" & dmgPath & \"' -quiet -nobrowse -mountpoint /tmp/eburon-install 2>/dev/null\" with administrator privileges
+    do shell script \"cp -R /tmp/eburon-install/Codex.app '\" & appDir & \"'\" with administrator privileges
+    do shell script \"hdiutil detach /tmp/eburon-install -quiet 2>/dev/null\" with administrator privileges
+
+    do shell script \"plutil -replace CFBundleDisplayName -string 'Eburon Codebox' '\" & appDir & \"/Contents/Info.plist'\" with administrator privileges
+    do shell script \"plutil -replace CFBundleName -string 'Eburon Codebox' '\" & appDir & \"/Contents/Info.plist'\" with administrator privileges
+    do shell script \"plutil -replace CFBundleIdentifier -string 'dev.eburon.codebox' '\" & appDir & \"/Contents/Info.plist'\" with administrator privileges
+    do shell script \"plutil -replace CFBundleShortVersionString -string '1.0.0' '\" & appDir & \"/Contents/Info.plist'\" with administrator privileges
+    do shell script \"plutil -replace CFBundleVersion -string '1.0.0' '\" & appDir & \"/Contents/Info.plist'\" with administrator privileges
+    do shell script \"plutil -remove ElectronAsarIntegrity '\" & appDir & \"/Contents/Info.plist' 2>/dev/null; exit 0\" with administrator privileges
+
+    do shell script \"curl -fsSL -o '\" & appDir & \"/Contents/Resources/app.asar' '\" & asarUrl & \"' --progress-bar 2>&1 | tail -1\" with administrator privileges
+    do shell script \"codesign --force --deep --sign - '\" & appDir & \"' 2>/dev/null\" with administrator privileges
+
+    do shell script \"rm -rf /Applications/Eburon\\ Codebox.app 2>/dev/null; ln -s '\" & appDir & \"' '/Applications/Eburon Codebox.app'\" with administrator privileges
+    do shell script \"rm -rf /Applications/Codex.app 2>/dev/null; ln -s '\" & appDir & \"' /Applications/Codex.app\" with administrator privileges
+
+    return \"Installation complete!\"
+  " 2>&1
+
+  rm -f "$dmg_path"
+  [ -d "$app_dir" ] && success "Eburon Codebox installed at $app_dir" || fail "Installation failed."
 }
 
 install_eburon_command() {
@@ -147,9 +142,11 @@ EOF
 verify() {
   echo ""
   echo -e "${CYAN}${BOLD}  ─── Verification ───────────────────────────${NC}"
+  local app_dir="$HOME/Applications/Eburon Codebox.app"
   local ok=true
-  [ -d "/codebox" ] && success "Eburon Codebox at /codebox: installed" || { warn "/codebox: missing"; ok=false; }
-  [ -L "/Applications/Codex.app" ] && [ "$(readlink /Applications/Codex.app)" = "/codebox" ] && success "Symlink /Applications/Codex.app → /codebox: ok" || { warn "Symlink missing"; ok=false; }
+  [ -d "$app_dir" ] && success "Eburon Codebox at $app_dir: installed" || { warn "$app_dir: missing"; ok=false; }
+  [ -L "/Applications/Eburon Codebox.app" ] && success "Symlink /Applications/Eburon Codebox.app: ok" || { warn "/Applications/Eburon Codebox.app: missing"; ok=false; }
+  [ -L "/Applications/Codex.app" ] && [ "$(readlink /Applications/Codex.app)" = "$app_dir" ] && success "Symlink /Applications/Codex.app → Eburon Codebox: ok" || { warn "/Applications/Codex.app symlink: missing"; ok=false; }
   command -v ollama &>/dev/null && success "Ollama: installed" || { warn "Ollama: missing"; ok=false; }
   ollama list 2>/dev/null | grep -q "eburon-pro/autonomous" && success "Model eburon-pro/autonomous: pulled" || { warn "Model eburon-pro/autonomous: not pulled"; ok=false; }
   command -v eburon &>/dev/null && success "eburon command: installed" || warn "eburon command: not in PATH"
@@ -174,9 +171,7 @@ main() {
   echo ""
   clone_repo
   echo ""
-  ensure_sudo
-  install_engine
-  rebrand
+  install_and_rebrand
   echo ""
   install_eburon_command
   echo ""
