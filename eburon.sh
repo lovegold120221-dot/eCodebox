@@ -192,6 +192,32 @@ PYEOF
   success "Eburon Codebox.app created — fully rebranded"
 }
 
+# ─── Install eburon command ───
+install_eburon_command() {
+  local dest="$HOME/.local/bin/eburon"
+  mkdir -p "$HOME/.local/bin"
+
+  step "Installing eburon command to $dest..."
+
+  cat > "$dest" << 'EBURONEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+EBURON_MODEL="${EBURON_MODEL:-eburon-pro/autonomous}"
+
+echo -e "\033[0;36m\033[1m  ╔═══════════════════════════════════════════╗"
+echo "  ║     ⚡ Eburon Codebox — Eburon AI      ║"
+echo -e "  ╚═══════════════════════════════════════════╝\033[0m"
+echo "  Model: $EBURON_MODEL"
+echo ""
+
+ollama launch codex-app --model "$EBURON_MODEL"
+EBURONEOF
+
+  chmod +x "$dest"
+  success "eburon command installed to $dest"
+}
+
 verify() {
   echo ""
   echo -e "${CYAN}${BOLD}  ─── Verification ───────────────────────────${NC}"
@@ -224,7 +250,7 @@ verify() {
     echo -e "${GREEN}${BOLD}  ✅ Installation complete!${NC}"
     echo ""
     echo -e "  ${CYAN}Open a new terminal and run:${NC}"
-    echo -e "  ${BOLD}    ollama launch codex-app --model eburon-pro/autonomous${NC}"
+    echo -e "  ${BOLD}    eburon${NC}"
     echo ""
     echo -e "  ${YELLOW}The app will show 'Eburon Codebox' everywhere —${NC}"
     echo -e "  ${YELLOW}window title, about dialog, menus, and UI.${NC}"
@@ -246,6 +272,9 @@ main() {
   
   install_codex
   rebrand_codebox
+  echo ""
+  
+  install_eburon_command
   echo ""
   
   verify

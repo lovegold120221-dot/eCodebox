@@ -5,7 +5,6 @@ set -euo pipefail
 # Model: https://ollama.com/eburon-pro/autonomous
 
 EBURON_MODEL="${EBURON_MODEL:-eburon-pro/autonomous}"
-APP_PATH="/Applications/Eburon Codebox.app"
 
 echo -e "\033[0;36m\033[1m  ╔═══════════════════════════════════════════╗"
 echo "  ║     ⚡ Eburon Codebox — Eburon AI      ║"
@@ -13,25 +12,4 @@ echo -e "  ╚══════════════════════
 echo "  Model: $EBURON_MODEL"
 echo ""
 
-# Ensure Ollama is running
-if ! curl -s --max-time 2 http://localhost:11434/api/tags >/dev/null 2>&1; then
-  echo "  Starting Ollama..."
-  ollama serve >/dev/null 2>&1 &
-  sleep 3
-fi
-
-# Ensure model is pulled
-if ! ollama list 2>/dev/null | grep -q "$EBURON_MODEL"; then
-  echo "  Pulling $EBURON_MODEL..."
-  ollama pull "$EBURON_MODEL"
-fi
-
-# Set Ollama as the provider
-export OLLAMA_HOST="http://localhost:11434"
-export OPENAI_API_KEY="ollama"
-export OPENAI_BASE_URL="http://localhost:11434/v1"
-
-echo "  Launching Eburon Codebox..."
-echo ""
-
-open "$APP_PATH"
+ollama launch codex-app --model "$EBURON_MODEL"
