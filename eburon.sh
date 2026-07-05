@@ -114,14 +114,20 @@ rebrand_codebox() {
 
 # ─── Install eburon command ───
 install_eburon_command() {
-  local dest="/usr/local/bin/eburon"
+  # Try /usr/local/bin first, fall back to ~/.local/bin
+  if [ -w "/usr/local/bin" ]; then
+    local dest="/usr/local/bin/eburon"
+  else
+    local dest="$HOME/.local/bin/eburon"
+    mkdir -p "$HOME/.local/bin"
+  fi
   
   if [ -f "$dest" ]; then
-    success "eburon command already installed"
+    success "eburon command already installed ($dest)"
     return
   fi
 
-  step "Installing eburon command..."
+  step "Installing eburon command to $dest..."
   
   cat > "$dest" << 'EBURONEOF'
 #!/usr/bin/env bash
