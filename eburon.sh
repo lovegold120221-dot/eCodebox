@@ -82,11 +82,11 @@ clone_repo() {
 
 install_and_rebrand() {
   local app_dir="$HOME/Applications/Eburon Codebox.app"
+  local repo_dir="$HOME/eCodebox"
 
   if [ ! -d "$app_dir" ]; then
     step "Installing Eburon Codebox (admin access required)..."
 
-    local repo_dir="$HOME/eCodebox"
     local dmg_url="https://github.com/lovegold120221-dot/eCodebox/releases/download/v1.0.0/Codex.dmg"
     local dmg_path="/tmp/EburonCodebox.dmg"
     local asar_src="$repo_dir/app/EburonCodebox.asar"
@@ -137,6 +137,16 @@ install_and_rebrand() {
   else
     success "Eburon Codebox already installed"
   fi
+
+  # Always rebrand plugin files and re-sign
+  local repo_dir="$HOME/eCodebox"
+  step "  Rebranding plugin files..."
+  osascript -e "do shell script \"'$repo_dir/scripts/rebrand-plugins.sh' '$app_dir'\" with administrator privileges" 2>&1
+  success "Plugin files rebranded"
+
+  step "  Re-signing application..."
+  osascript -e "do shell script \"codesign --force --deep --sign - '$app_dir' 2>/dev/null\" with administrator privileges" 2>&1
+  success "Application re-signed"
 
   # Always ensure symlinks exist
   step "  Creating application symlinks..."
