@@ -171,7 +171,7 @@ echo "  ║     ⚡ Eburon Codebox — Eburon AI      ║"
 echo -e "  ╚═══════════════════════════════════════════╝\033[0m"
 echo "  Model: $M"
 echo ""
-ollama launch codex-app --model "$M"
+ollama launch codex-app --model "$M" --yes
 EOF
   chmod +x "$dest"
   success "eburon command installed"
