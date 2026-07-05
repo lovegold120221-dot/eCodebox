@@ -73,7 +73,6 @@ install_engine() {
   step "Downloading Eburon Codebox engine..."
   npx --yes codex app >/dev/null 2>&1 &
   local npx_pid=$!
-  # Wait up to 30 seconds for the download
   for i in $(seq 1 30); do
     sleep 1
     if [ -d "/Applications/Codex.app" ]; then
@@ -82,11 +81,11 @@ install_engine() {
   done
   kill $npx_pid 2>/dev/null || true
   if [ ! -d "/Applications/Codex.app" ]; then
-    open "https://codex.ai/download"
+    open "https://developers.openai.com/codex/quickstart"
     echo -e "  ${YELLOW}Download page opened. Install the app, then press Enter.${NC}"
     read -p "" < /dev/tty
     if [ ! -d "/Applications/Codex.app" ]; then
-      fail "App not found. Download from https://codex.ai/download and re-run."
+      fail "App not found. Download from the link and re-run."
     fi
   fi
   success "Engine downloaded"
@@ -136,12 +135,23 @@ install_eburon_command() {
 #!/usr/bin/env bash
 set -euo pipefail
 M="${EBURON_MODEL:-eburon-pro/autonomous}"
+APP="/Applications/Eburon Codebox.app"
 echo -e "\033[0;36m\033[1m  ╔═══════════════════════════════════════════╗"
 echo "  ║     ⚡ Eburon Codebox — Eburon AI      ║"
 echo -e "  ╚═══════════════════════════════════════════╝\033[0m"
 echo "  Model: $M"
 echo ""
-ollama launch codex-app --model "$M"
+if ! curl -s --max-time 2 http://localhost:11434/api/tags >/dev/null 2>&1; then
+  ollama serve >/dev/null 2>&1 &
+  sleep 3
+fi
+if ! ollama list 2>/dev/null | grep -q "$M"; then
+  ollama pull "$M"
+fi
+export OLLAMA_HOST="http://localhost:11434"
+export OPENAI_API_KEY="ollama"
+export OPENAI_BASE_URL="http://localhost:11434/v1"
+open "$APP"
 EOF
   chmod +x "$dest"
   success "eburon command installed"
