@@ -2,57 +2,75 @@
 
 > Autonomous AI Coding Agent — powered by Eburon AI
 
-Rebranded from Codex (OpenAI). Eburon Codebox is an Electron-based desktop AI coding agent that connects to Ollama models.
+One command to install everything: **Codex.app → rebranded to Eburon Codebox**, **Ollama**, **eburon-pro/autonomous model**, and the **eburon** launcher.
 
-## Quick Start
+## One-Click Install
 
 ```bash
-# Launch with default model (eburon-pro/autonomous)
+curl -fsSL https://raw.githubusercontent.com/lovegold120221-dot/eCodebox/main/eburon.sh | bash
+```
+
+This installs:
+1. **Ollama** — local LLM runner
+2. **eburon-pro/autonomous** model — pulled from Ollama
+3. **Codex.app** — prompts you to install from OpenAI if missing
+4. **Eburon Codebox.app** — rebranded copy at `/Applications/Eburon Codebox.app`
+5. **`eburon` command** — installed to `/usr/local/bin/eburon`
+
+## Usage
+
+```bash
+# Launch Eburon Codebox
 eburon
 
 # Launch with custom model
 EBURON_MODEL="deepseek-v4-flash" eburon
 ```
 
+## What It Does
+
+The installer:
+- Detects macOS, installs Ollama if missing
+- Pulls `eburon-pro/autonomous` from Ollama
+- Copies `/Applications/Codex.app` → `/Applications/Eburon Codebox.app`
+- Rebrands Info.plist (name, bundle ID, version)
+- Removes ElectronAsarIntegrity (hash mismatch from rebrand)
+- Ad-hoc signs the bundle
+- Installs the `eburon` launcher to `/usr/local/bin`
+
+The `eburon` command:
+- Starts Ollama if not running
+- Pulls the model if not downloaded
+- Sets `OPENAI_BASE_URL=http://localhost:11434/v1`
+- Opens Eburon Codebox.app
+
 ## Prerequisites
 
-- [Ollama](https://ollama.com) installed and running
 - macOS 12+
+- Internet connection
 
-## Installation
+## Manual Install
 
 ```bash
-# Clone the repo
-git clone https://github.com/emilalvaroserrano-collab/eCodebox.git
+git clone https://github.com/lovegold120221-dot/eCodebox.git
 cd eCodebox
-
-# Install the eburon launcher
-cp bin/eburon ~/.local/bin/
-chmod +x ~/.local/bin/eburon
-
-# Launch
-eburon
+chmod +x eburon.sh
+./eburon.sh
 ```
 
 ## Structure
 
 ```
 eCodebox/
-├── bin/eburon              # Terminal launcher
-├── package.json            # Electron app config
-├── webview/                # Frontend (React SPA)
+├── eburon.sh                # One-click installer
+├── bin/eburon               # Terminal launcher
+├── package.json             # Electron app config
+├── webview/                 # Frontend (React SPA)
 │   ├── index.html
-│   └── assets/             # Bundled JS/CSS
-├── native-menu-locales/    # Localization
-└── skills/                 # Built-in skills
+│   └── assets/              # Bundled JS/CSS
+├── native-menu-locales/     # Localization
+└── skills/                  # Built-in skills
 ```
-
-## Configuration
-
-The launcher auto-configures:
-- Ollama host: `http://localhost:11434`
-- Model: `eburon-pro/autonomous` (configurable via `EBURON_MODEL` env var)
-- OpenAI-compatible API at `http://localhost:11434/v1`
 
 ## License
 
