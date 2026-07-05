@@ -115,10 +115,12 @@ rebrand_codebox() {
 # ─── Install eburon command ───
 install_eburon_command() {
   # Try /usr/local/bin first, fall back to ~/.local/bin
-  if [ -w "/usr/local/bin" ]; then
-    local dest="/usr/local/bin/eburon"
+  local dest=""
+  if touch "/usr/local/bin/.eburon-test" 2>/dev/null; then
+    rm -f "/usr/local/bin/.eburon-test"
+    dest="/usr/local/bin/eburon"
   else
-    local dest="$HOME/.local/bin/eburon"
+    dest="$HOME/.local/bin/eburon"
     mkdir -p "$HOME/.local/bin"
   fi
   
