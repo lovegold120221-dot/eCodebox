@@ -78,7 +78,7 @@ install_engine() {
     return
   fi
   step "Installing Eburon Codebox engine..."
-  local dmg_url="https://github.com/lovegold120221-dot/eCodebox/raw/main/EburonCodebox.dmg"
+  local dmg_url="https://github.com/lovegold120221-dot/eCodebox/releases/download/v1.0.0/EburonCodebox.dmg"
   local dmg_path="/tmp/EburonCodebox.dmg"
   curl -fsSL -o "$dmg_path" "$dmg_url" --progress-bar 2>&1 | tail -1
   if [ ! -f "$dmg_path" ] || [ "$(stat -f%z "$dmg_path" 2>/dev/null)" -lt 100000000 ]; then

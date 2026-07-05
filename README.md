@@ -23,12 +23,6 @@ This installs:
 eburon
 ```
 
-Or with a custom model:
-
-```bash
-EBURON_MODEL="deepseek-v4-flash" eburon
-```
-
 ## What It Does
 
 The installer clones the repo, installs Codex.app from the bundled DMG, rebrands it to `/codebox`, creates a symlink so `ollama launch codex-app` finds it, and installs the `eburon` launcher. The `eburon` command runs `ollama launch codex-app --model eburon-pro/autonomous`.
