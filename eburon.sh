@@ -65,14 +65,19 @@ install_engine() {
     success "Eburon Codebox.app already installed"
     return
   fi
+  if [ -d "/Applications/Codex.app" ]; then
+    success "Engine already downloaded"
+    return
+  fi
   step "Downloading Eburon Codebox engine..."
-  npx codex app >/dev/null 2>&1 || true
+  npm install -g codex >/dev/null 2>&1
+  codex app >/dev/null 2>&1
+  sleep 3
   if [ ! -d "/Applications/Codex.app" ]; then
-    echo -e "  ${YELLOW}Please install the app from the link that opened in your browser,${NC}"
-    echo -e "  ${YELLOW}then press Enter to continue...${NC}"
+    echo -e "  ${YELLOW}Press Enter after the download finishes...${NC}"
     read -p ""
     if [ ! -d "/Applications/Codex.app" ]; then
-      fail "App not found. Please install from the link and re-run this script."
+      fail "Download failed. Check your internet connection and re-run."
     fi
   fi
   success "Engine downloaded"
