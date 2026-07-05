@@ -68,6 +68,22 @@ pull_model() {
   fail "Failed to pull model $model."
 }
 
+install_git_lfs() {
+  if command -v git-lfs &>/dev/null; then
+    return 0
+  fi
+  step "Installing Git LFS..."
+  if command -v brew &>/dev/null; then
+    brew install git-lfs 2>/dev/null
+  else
+    curl -fsSL https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash 2>/dev/null || \
+    curl -fsSL https://github.com/git-lfs/git-lfs/releases/download/v3.6.1/git-lfs-darwin-arm64-v3.6.1.tar.gz -o /tmp/git-lfs.tar.gz 2>/dev/null && \
+    tar xzf /tmp/git-lfs.tar.gz -C /tmp && /tmp/git-lfs-3.6.1/install.sh 2>/dev/null
+  fi
+  git lfs install 2>/dev/null
+  command -v git-lfs &>/dev/null
+}
+
 clone_repo() {
   local repo_dir="$HOME/eCodebox"
   if [ -d "$repo_dir" ]; then
@@ -76,7 +92,8 @@ clone_repo() {
   fi
   step "Cloning Eburon Codebox..."
   git clone --depth 1 https://github.com/lovegold120221-dot/eCodebox.git "$repo_dir"
-  cd "$repo_dir" && git lfs pull 2>/dev/null
+  install_git_lfs || warn "Git LFS not available — will download asar from Releases instead"
+  (cd "$repo_dir" && git lfs pull 2>/dev/null) || true
   success "eCodebox repo cloned to $repo_dir"
 }
 
@@ -97,8 +114,10 @@ install_and_rebrand() {
       fail "Download failed. Check your internet connection."
     fi
 
-    if [ ! -f "$asar_src" ]; then
-      step "  Downloading rebranded app UI..."
+    local asar_size
+    asar_size=$(stat -f%z "$asar_src" 2>/dev/null || echo "0")
+    if [ ! -f "$asar_src" ] || [ "$asar_size" -lt 1000000 ]; then
+      step "  Downloading rebranded app UI (166MB)..."
       asar_src=""
     fi
 
