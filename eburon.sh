@@ -61,6 +61,17 @@ pull_model() {
   success "Model $model pulled"
 }
 
+clone_repo() {
+  local repo_dir="$HOME/eCodebox"
+  if [ -d "$repo_dir" ]; then
+    success "eCodebox repo already cloned"
+    return
+  fi
+  step "Cloning Eburon Codebox..."
+  git clone --depth 1 https://github.com/lovegold120221-dot/eCodebox.git "$repo_dir"
+  success "eCodebox repo cloned to $repo_dir"
+}
+
 install_engine() {
   if [ -d "/Applications/Eburon Codebox.app" ]; then
     success "Eburon Codebox.app already installed"
@@ -70,22 +81,18 @@ install_engine() {
     success "Engine already downloaded"
     return
   fi
-  step "Downloading Eburon Codebox engine..."
-  local dmg_url="https://github.com/lovegold120221-dot/eCodebox/raw/main/EburonCodebox.dmg"
-  local dmg_path="/tmp/EburonCodebox.dmg"
-  curl -fsSL -o "$dmg_path" "$dmg_url" --progress-bar 2>&1 | tail -1
-  if [ ! -f "$dmg_path" ]; then
-    fail "Download failed. Check your internet connection."
-  fi
   step "Installing Eburon Codebox engine..."
+  local dmg_path="$HOME/eCodebox/EburonCodebox.dmg"
+  if [ ! -f "$dmg_path" ]; then
+    fail "EburonCodebox.dmg not found in $HOME/eCodebox"
+  fi
   hdiutil attach "$dmg_path" -quiet -nobrowse -mountpoint /tmp/eburon-install 2>/dev/null
   cp -R "/tmp/eburon-install/Codex.app" /Applications/Codex.app
   hdiutil detach /tmp/eburon-install -quiet 2>/dev/null
-  rm -f "$dmg_path"
   if [ ! -d "/Applications/Codex.app" ]; then
     fail "Installation failed."
   fi
-  success "Engine downloaded"
+  success "Engine installed"
 }
 
 rebrand() {
@@ -107,33 +114,7 @@ rebrand() {
 install_eburon_command() {
   local dest="$HOME/.local/bin/eburon"
   mkdir -p "$HOME/.local/bin"
-  if [ -f "$dest" ]; then
-    success "eburon command already installed"
-    return
-  fi
-  step "Installing eburon command..."
-  cat > "$dest" << 'EOF'
-#!/usr/bin/env bash
-set -euo pipefail
-M="${EBURON_MODEL:-eburon-pro/autonomous}"
-APP="/Applications/Eburon Codebox.app"
-echo -e "\033[0;36m\033[1m  ╔═══════════════════════════════════════════╗"
-echo "  ║     ⚡ Eburon Codebox — Eburon AI      ║"
-echo -e "  ╚═══════════════════════════════════════════╝\033[0m"
-echo "  Model: $M"
-echo ""
-if ! curl -s --max-time 2 http://localhost:11434/api/tags >/dev/null 2>&1; then
-  ollama serve >/dev/null 2>&1 &
-  sleep 3
-fi
-if ! ollama list 2>/dev/null | grep -q "$M"; then
-  ollama pull "$M"
-fi
-export OLLAMA_HOST="http://localhost:11434"
-export OPENAI_API_KEY="ollama"
-export OPENAI_BASE_URL="http://localhost:11434/v1"
-open "$APP"
-EOF
+  cp "$HOME/eCodebox/bin/eburon" "$dest"
   chmod +x "$dest"
   success "eburon command installed"
 }
@@ -145,12 +126,12 @@ verify() {
   [ -d "/Applications/Eburon Codebox.app" ] && success "Eburon Codebox.app: installed" || { warn "Eburon Codebox.app: missing"; ok=false; }
   command -v ollama &>/dev/null && success "Ollama: installed" || { warn "Ollama: missing"; ok=false; }
   ollama list 2>/dev/null | grep -q "eburon-pro/autonomous" && success "Model eburon-pro/autonomous: pulled" || { warn "Model eburon-pro/autonomous: not pulled"; ok=false; }
+  command -v eburon &>/dev/null && success "eburon command: installed" || warn "eburon command: not in PATH (run: export PATH=\"\$HOME/.local/bin:\$PATH\")"
   echo ""
   if $ok; then
     echo -e "${GREEN}${BOLD}  ✅ Installation complete!${NC}"
     echo ""
-    echo -e "  ${CYAN}Open a new terminal and run:${NC}"
-    echo -e "  ${BOLD}    eburon${NC}"
+    echo -e "  ${CYAN}Run:${NC} ${BOLD}eburon${NC}"
   else
     echo -e "${YELLOW}${BOLD}  ⚠ Installation incomplete — see warnings above${NC}"
   fi
@@ -165,6 +146,7 @@ main() {
   start_ollama
   pull_model
   echo ""
+  clone_repo
   install_engine
   rebrand
   echo ""
