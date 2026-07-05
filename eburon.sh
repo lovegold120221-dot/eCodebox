@@ -70,20 +70,16 @@ install_engine() {
     return
   fi
   step "Downloading Eburon Codebox engine..."
-  if ! command -v codex &>/dev/null; then
-    npm install -g codex >/dev/null 2>&1 || true
-  fi
-  if command -v codex &>/dev/null; then
-    codex app >/dev/null 2>&1 || true
-    sleep 3
-  fi
+  open "https://codex.ai/download"
+  echo -e "  ${YELLOW}A download page opened in your browser.${NC}"
+  echo -e "  ${YELLOW}Install the app, then press Enter.${NC}"
+  read -p ""
   if [ ! -d "/Applications/Codex.app" ]; then
-    echo -e "  ${YELLOW}Open this link in your browser to download:${NC}"
-    echo -e "  ${YELLOW}  https://codex.ai/download${NC}"
-    echo -e "  ${YELLOW}Then press Enter to continue...${NC}"
+    echo -e "  ${YELLOW}Still not found. Try downloading manually,${NC}"
+    echo -e "  ${YELLOW}then press Enter again.${NC}"
     read -p ""
     if [ ! -d "/Applications/Codex.app" ]; then
-      fail "Download not found. Please install from https://codex.ai/download and re-run."
+      fail "App not found. Download from the link and re-run."
     fi
   fi
   success "Engine downloaded"
