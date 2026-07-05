@@ -13,6 +13,17 @@ success() { echo -e "${GREEN}  ✓${NC} $1"; }
 warn()    { echo -e "${YELLOW}  ⚠${NC} $1"; }
 fail()    { echo -e "${RED}  ✗${NC} $1"; exit 1; }
 
+ensure_sudo() {
+  step "Requesting admin access..."
+  if sudo -v; then
+    # Keep sudo alive in background
+    while true; do sudo -n true; sleep 60; kill -0 "$$" 2>/dev/null || exit; done 2>/dev/null &
+    success "Admin access granted"
+  else
+    fail "Admin access required to install at /codebox."
+  fi
+}
+
 banner() {
   echo -e "${CYAN}${BOLD}"
   echo "  ╔═══════════════════════════════════════════╗"
@@ -85,7 +96,7 @@ install_engine() {
     fail "Download failed. Check your internet connection."
   fi
   hdiutil attach "$dmg_path" -quiet -nobrowse -mountpoint /tmp/eburon-install 2>/dev/null
-  cp -R "/tmp/eburon-install/Codex.app" /Applications/Codex.app
+  sudo cp -R "/tmp/eburon-install/Codex.app" /Applications/Codex.app
   hdiutil detach /tmp/eburon-install -quiet 2>/dev/null
   rm -f "$dmg_path"
   if [ ! -d "/Applications/Codex.app" ]; then
@@ -99,19 +110,19 @@ rebrand() {
     return
   fi
   step "Configuring Eburon Codebox at /codebox..."
-  cp -R "/Applications/Codex.app" "/codebox"
-  plutil -replace CFBundleDisplayName -string "Eburon Codebox" "/codebox/Contents/Info.plist"
-  plutil -replace CFBundleName -string "Eburon Codebox" "/codebox/Contents/Info.plist"
-  plutil -replace CFBundleIdentifier -string "dev.eburon.codebox" "/codebox/Contents/Info.plist"
-  plutil -replace CFBundleShortVersionString -string "1.0.0" "/codebox/Contents/Info.plist"
-  plutil -replace CFBundleVersion -string "1.0.0" "/codebox/Contents/Info.plist"
-  plutil -remove ElectronAsarIntegrity "/codebox/Contents/Info.plist" 2>/dev/null || true
+  sudo cp -R "/Applications/Codex.app" "/codebox"
+  sudo plutil -replace CFBundleDisplayName -string "Eburon Codebox" "/codebox/Contents/Info.plist"
+  sudo plutil -replace CFBundleName -string "Eburon Codebox" "/codebox/Contents/Info.plist"
+  sudo plutil -replace CFBundleIdentifier -string "dev.eburon.codebox" "/codebox/Contents/Info.plist"
+  sudo plutil -replace CFBundleShortVersionString -string "1.0.0" "/codebox/Contents/Info.plist"
+  sudo plutil -replace CFBundleVersion -string "1.0.0" "/codebox/Contents/Info.plist"
+  sudo plutil -remove ElectronAsarIntegrity "/codebox/Contents/Info.plist" 2>/dev/null || true
   step "  Applying Eburon Codebox UI..."
   local asar_url="https://github.com/lovegold120221-dot/eCodebox/releases/download/v1.0.0/EburonCodebox.asar"
-  curl -fsSL -o "/codebox/Contents/Resources/app.asar" "$asar_url" --progress-bar 2>&1 | tail -1
-  codesign --force --deep --sign - "/codebox" 2>/dev/null
-  rm -rf "/Applications/Codex.app"
-  ln -s "/codebox" "/Applications/Codex.app"
+  sudo curl -fsSL -o "/codebox/Contents/Resources/app.asar" "$asar_url" --progress-bar 2>&1 | tail -1
+  sudo codesign --force --deep --sign - "/codebox" 2>/dev/null
+  sudo rm -rf "/Applications/Codex.app"
+  sudo ln -s "/codebox" "/Applications/Codex.app"
   success "Eburon Codebox configured at /codebox"
 }
 
@@ -162,6 +173,8 @@ main() {
   pull_model
   echo ""
   clone_repo
+  echo ""
+  ensure_sudo
   install_engine
   rebrand
   echo ""
