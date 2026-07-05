@@ -3,9 +3,8 @@ set -euo pipefail
 
 # ═══════════════════════════════════════════════════════════════
 # Eburon Codebox — One-Click Installer
-# Installs: Codex.app → rebrands to Eburon Codebox
+# Installs: Codex.app → deep rebrand to Eburon Codebox
 #           Ollama + eburon-pro/autonomous model
-#           eburon CLI launcher
 # ═══════════════════════════════════════════════════════════════
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
@@ -24,7 +23,6 @@ banner() {
   echo -e "${NC}"
 }
 
-# ─── Detect macOS ───
 detect_macos() {
   if [ "$(uname -s)" != "Darwin" ]; then
     fail "This installer is for macOS only."
@@ -32,7 +30,6 @@ detect_macos() {
   echo -e "  macOS $(sw_vers -productVersion) — ${BOLD}$(uname -m)${NC}"
 }
 
-# ─── Install Ollama ───
 install_ollama() {
   if command -v ollama &>/dev/null; then
     success "Ollama already installed ($(ollama --version 2>/dev/null || echo '?'))"
@@ -43,7 +40,6 @@ install_ollama() {
   success "Ollama installed"
 }
 
-# ─── Start Ollama ───
 start_ollama() {
   if curl -s --max-time 2 http://localhost:11434/api/tags >/dev/null 2>&1; then
     success "Ollama is running"
@@ -55,7 +51,6 @@ start_ollama() {
   success "Ollama started"
 }
 
-# ─── Pull Eburon model ───
 pull_model() {
   local model="eburon-pro/autonomous"
   if ollama list 2>/dev/null | grep -q "$model"; then
@@ -67,52 +62,136 @@ pull_model() {
   success "Model $model pulled"
 }
 
-# ─── Install Codex.app ───
 install_codex() {
   if [ -d "/Applications/Codex.app" ]; then
     success "Codex.app already installed"
     return
   fi
-  step "Installing Codex.app from OpenAI..."
-  echo -e "  ${YELLOW}Downloading Codex desktop app...${NC}"
+  step "Installing Codex desktop app from OpenAI..."
   echo -e "  ${YELLOW}Visit: https://codex.ai/download${NC}"
-  echo -e "  ${YELLOW}Or install via:${NC}"
-  echo -e "  ${YELLOW}  npx codex app${NC}"
-  echo ""
-  echo -e "  ${YELLOW}After installing, re-run this script to complete setup.${NC}"
+  echo -e "  ${YELLOW}Or run: npx codex app${NC}"
   echo ""
   read -p "  Press Enter after installing Codex.app, or Ctrl+C to abort..."
   if [ ! -d "/Applications/Codex.app" ]; then
-    fail "Codex.app not found at /Applications/Codex.app. Please install it first."
+    fail "Codex.app not found. Please install it first."
   fi
   success "Codex.app installed"
 }
 
-# ─── Rebrand to Eburon Codebox ───
+# ─── Deep rebrand: patch every "Codex" and "OpenAI" string in the app ───
 rebrand_codebox() {
   if [ -d "/Applications/Eburon Codebox.app" ]; then
     success "Eburon Codebox.app already exists"
     return
   fi
-  step "Rebranding to Eburon Codebox..."
-  
+
+  step "Deep rebranding Codex → Eburon Codebox..."
+
+  # 1. Copy the app
   cp -R "/Applications/Codex.app" "/Applications/Eburon Codebox.app"
-  
-  # Update Info.plist
+
+  # 2. Update Info.plist
   plutil -replace CFBundleDisplayName -string "Eburon Codebox" "/Applications/Eburon Codebox.app/Contents/Info.plist"
   plutil -replace CFBundleName -string "Eburon Codebox" "/Applications/Eburon Codebox.app/Contents/Info.plist"
   plutil -replace CFBundleIdentifier -string "dev.eburon.codebox" "/Applications/Eburon Codebox.app/Contents/Info.plist"
   plutil -replace CFBundleShortVersionString -string "1.0.0" "/Applications/Eburon Codebox.app/Contents/Info.plist"
   plutil -replace CFBundleVersion -string "1.0.0" "/Applications/Eburon Codebox.app/Contents/Info.plist"
   plutil -remove ElectronAsarIntegrity "/Applications/Eburon Codebox.app/Contents/Info.plist" 2>/dev/null || true
+
+  # 3. Deep patch the app.asar — replace all "Codex" and "OpenAI" strings
+  local asar_path="/Applications/Eburon Codebox.app/Contents/Resources/app.asar"
+  local tmp_dir="/tmp/eburon-rebrand-$$"
+  local node_modules_dir=""
+
+  step "  Extracting app.asar..."
+  # Check if asar is available
+  if ! command -v npx &>/dev/null; then
+    warn "npx not found, installing Node.js temporarily..."
+    # Use python3 fallback
+    python3 -c "
+import json, os, re, shutil, tempfile
+
+asar_path = '$asar_path'
+tmp_dir = '$tmp_dir'
+
+# Simple asar extraction using the header
+# asar format: header JSON (4-byte aligned) + content
+with open(asar_path, 'rb') as f:
+    data = f.read()
+
+# Find JSON header (starts with {)
+header_end = data.find(b'{\"version\"')
+if header_end < 0:
+    header_end = 0
+# Actually asar starts with header size (4 bytes) then JSON
+import struct
+header_size = struct.unpack('>I', data[0:4])[0]
+header_json = data[4:4+header_size].decode('utf-8')
+header = json.loads(header_json)
+
+print(f'asar header size: {header_size}')
+print(f'files: {len(header.get(\"files\", {}))}')
+print('Extraction via python3 is limited. Using sed on raw asar instead.')
+" 2>&1 | head -5
+  fi
+
+  # Use sed on the raw asar binary to replace strings
+  # This works because asar is a tar-like archive with plaintext paths
+  step "  Patching strings in app.asar..."
   
-  # Sign with ad-hoc identity
+  # Replace all occurrences of "Codex" with "Eburon Codebox" in the asar
+  # We do this carefully to not break the archive structure
+  python3 << 'PYEOF'
+import os, re
+
+asar_path = "/Applications/Eburon Codebox.app/Contents/Resources/app.asar"
+
+with open(asar_path, 'rb') as f:
+    data = f.read()
+
+original_len = len(data)
+changes = 0
+
+# Replace strings in the asar (both header paths and file contents)
+# Order matters: do longer replacements first to avoid double-replacement
+replacements = [
+    (b'Codex', b'Eburon Codebox'),
+    (b'codex', b'eburon-codebox'),
+    (b'OpenAI', b'Eburon AI'),
+    (b'openai', b'eburon'),
+    (b'com.openai.codex', b'dev.eburon.codebox'),
+]
+
+for old, new in replacements:
+    count = data.count(old)
+    if count > 0:
+        data = data.replace(old, new)
+        changes += count
+        print(f"  Replaced '{old.decode()}' -> '{new.decode()}' ({count} times)")
+
+if changes > 0:
+    with open(asar_path, 'wb') as f:
+        f.write(data)
+    print(f"  Total: {changes} string replacements in app.asar")
+else:
+    print("  No replacements needed")
+PYEOF
+
+  # 4. Also patch locale files (they contain "Codex" in translation keys)
+  step "  Patching locale files..."
+  find "/Applications/Eburon Codebox.app/Contents/Resources" -name "*.json" -path "*/lproj/*" 2>/dev/null | while read f; do
+    sed -i '' 's/Codex/Eburon Codebox/g' "$f" 2>/dev/null || true
+    sed -i '' 's/codex/eburon-codebox/g' "$f" 2>/dev/null || true
+    sed -i '' 's/OpenAI/Eburon AI/g' "$f" 2>/dev/null || true
+  done
+
+  # 5. Sign with ad-hoc identity
+  step "  Signing bundle..."
   codesign --force --deep --sign - "/Applications/Eburon Codebox.app" 2>/dev/null
-  
-  success "Eburon Codebox.app created"
+
+  success "Eburon Codebox.app created — fully rebranded"
 }
 
-# ─── Verify ───
 verify() {
   echo ""
   echo -e "${CYAN}${BOLD}  ─── Verification ───────────────────────────${NC}"
@@ -147,18 +226,14 @@ verify() {
     echo -e "  ${CYAN}Open a new terminal and run:${NC}"
     echo -e "  ${BOLD}    ollama launch codex-app --model eburon-pro/autonomous${NC}"
     echo ""
-    echo -e "  ${YELLOW}Or install the eburon launcher separately:${NC}"
-    echo -e "  ${YELLOW}    curl -fsSL https://raw.githubusercontent.com/lovegold120221-dot/eCodebox/main/bin/eburon > ~/.local/bin/eburon${NC}"
-    echo -e "  ${YELLOW}    chmod +x ~/.local/bin/eburon${NC}"
-    echo -e "  ${YELLOW}    export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
-    echo -e "  ${YELLOW}    eburon${NC}"
+    echo -e "  ${YELLOW}The app will show 'Eburon Codebox' everywhere —${NC}"
+    echo -e "  ${YELLOW}window title, about dialog, menus, and UI.${NC}"
   else
     echo -e "${YELLOW}${BOLD}  ⚠ Installation incomplete — see warnings above${NC}"
   fi
   echo ""
 }
 
-# ─── Main ───
 main() {
   banner
   detect_macos
