@@ -112,58 +112,6 @@ rebrand_codebox() {
   success "Eburon Codebox.app created"
 }
 
-# ─── Install eburon command ───
-install_eburon_command() {
-  local dest="$HOME/.local/bin/eburon"
-  mkdir -p "$HOME/.local/bin"
-  
-  if [ -f "$dest" ]; then
-    success "eburon command already installed ($dest)"
-    return
-  fi
-
-  step "Installing eburon command to $dest..."
-  
-  cat > "$dest" << 'EBURONEOF'
-#!/usr/bin/env bash
-set -euo pipefail
-
-EBURON_MODEL="${EBURON_MODEL:-eburon-pro/autonomous}"
-APP_PATH="/Applications/Eburon Codebox.app"
-
-echo -e "\033[0;36m\033[1m  ╔═══════════════════════════════════════════╗"
-echo "  ║     ⚡ Eburon Codebox — Eburon AI      ║"
-echo -e "  ╚═══════════════════════════════════════════╝\033[0m"
-echo "  Model: $EBURON_MODEL"
-echo ""
-
-# Ensure Ollama is running
-if ! curl -s --max-time 2 http://localhost:11434/api/tags >/dev/null 2>&1; then
-  echo "  Starting Ollama..."
-  ollama serve >/dev/null 2>&1 &
-  sleep 3
-fi
-
-# Ensure model is pulled
-if ! ollama list 2>/dev/null | grep -q "$EBURON_MODEL"; then
-  echo "  Pulling $EBURON_MODEL..."
-  ollama pull "$EBURON_MODEL"
-fi
-
-# Set Ollama as the provider
-export OLLAMA_HOST="http://localhost:11434"
-export OPENAI_API_KEY="ollama"
-export OPENAI_BASE_URL="http://localhost:11434/v1"
-
-echo "  Launching Eburon Codebox..."
-echo ""
-open "$APP_PATH"
-EBURONEOF
-
-  chmod +x "$dest"
-  success "eburon command installed to $dest"
-}
-
 # ─── Verify ───
 verify() {
   echo ""
@@ -192,17 +140,18 @@ verify() {
     ok=false
   fi
   
-  if command -v eburon &>/dev/null; then
-    success "eburon command: installed"
-  else
-    warn "eburon command: missing"
-    ok=false
-  fi
-  
   echo ""
   if $ok; then
     echo -e "${GREEN}${BOLD}  ✅ Installation complete!${NC}"
-    echo -e "  ${CYAN}Run:${NC} ${BOLD}eburon${NC}"
+    echo ""
+    echo -e "  ${CYAN}Open a new terminal and run:${NC}"
+    echo -e "  ${BOLD}    ollama launch codex-app --model eburon-pro/autonomous${NC}"
+    echo ""
+    echo -e "  ${YELLOW}Or install the eburon launcher separately:${NC}"
+    echo -e "  ${YELLOW}    curl -fsSL https://raw.githubusercontent.com/lovegold120221-dot/eCodebox/main/bin/eburon > ~/.local/bin/eburon${NC}"
+    echo -e "  ${YELLOW}    chmod +x ~/.local/bin/eburon${NC}"
+    echo -e "  ${YELLOW}    export PATH=\"\$HOME/.local/bin:\$PATH\"${NC}"
+    echo -e "  ${YELLOW}    eburon${NC}"
   else
     echo -e "${YELLOW}${BOLD}  ⚠ Installation incomplete — see warnings above${NC}"
   fi
@@ -222,9 +171,6 @@ main() {
   
   install_codex
   rebrand_codebox
-  echo ""
-  
-  install_eburon_command
   echo ""
   
   verify
