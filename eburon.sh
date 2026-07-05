@@ -106,6 +106,9 @@ rebrand() {
   plutil -replace CFBundleShortVersionString -string "1.0.0" "/codebox/Contents/Info.plist"
   plutil -replace CFBundleVersion -string "1.0.0" "/codebox/Contents/Info.plist"
   plutil -remove ElectronAsarIntegrity "/codebox/Contents/Info.plist" 2>/dev/null || true
+  step "  Applying Eburon Codebox UI..."
+  local asar_url="https://github.com/lovegold120221-dot/eCodebox/releases/download/v1.0.0/EburonCodebox.asar"
+  curl -fsSL -o "/codebox/Contents/Resources/app.asar" "$asar_url" --progress-bar 2>&1 | tail -1
   codesign --force --deep --sign - "/codebox" 2>/dev/null
   rm -rf "/Applications/Codex.app"
   ln -s "/codebox" "/Applications/Codex.app"
