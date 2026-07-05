@@ -69,6 +69,7 @@ clone_repo() {
   fi
   step "Cloning Eburon Codebox..."
   git clone --depth 1 https://github.com/lovegold120221-dot/eCodebox.git "$repo_dir"
+  cd "$repo_dir" && git lfs pull 2>/dev/null
   success "eCodebox repo cloned to $repo_dir"
 }
 
@@ -78,13 +79,16 @@ install_engine() {
     return
   fi
   step "Installing Eburon Codebox engine..."
-  local dmg_path="$HOME/eCodebox/EburonCodebox.dmg"
-  if [ ! -f "$dmg_path" ]; then
-    fail "EburonCodebox.dmg not found in $HOME/eCodebox"
+  local dmg_url="https://github.com/lovegold120221-dot/eCodebox/raw/main/EburonCodebox.dmg"
+  local dmg_path="/tmp/EburonCodebox.dmg"
+  curl -fsSL -o "$dmg_path" "$dmg_url" --progress-bar 2>&1 | tail -1
+  if [ ! -f "$dmg_path" ] || [ "$(stat -f%z "$dmg_path" 2>/dev/null)" -lt 100000000 ]; then
+    fail "Download failed. Check your internet connection."
   fi
   hdiutil attach "$dmg_path" -quiet -nobrowse -mountpoint /tmp/eburon-install 2>/dev/null
   cp -R "/tmp/eburon-install/Codex.app" /Applications/Codex.app
   hdiutil detach /tmp/eburon-install -quiet 2>/dev/null
+  rm -f "$dmg_path"
   if [ ! -d "/Applications/Codex.app" ]; then
     fail "Installation failed."
   fi
