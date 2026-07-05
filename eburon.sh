@@ -103,22 +103,6 @@ rebrand() {
   plutil -replace CFBundleShortVersionString -string "1.0.0" "/Applications/Eburon Codebox.app/Contents/Info.plist"
   plutil -replace CFBundleVersion -string "1.0.0" "/Applications/Eburon Codebox.app/Contents/Info.plist"
   plutil -remove ElectronAsarIntegrity "/Applications/Eburon Codebox.app/Contents/Info.plist" 2>/dev/null || true
-  python3 << 'PYEOF'
-import os
-asar = "/Applications/Eburon Codebox.app/Contents/Resources/app.asar"
-with open(asar, 'rb') as f:
-    data = f.read()
-repls = [(b'Codex', b'Eburon Codebox'), (b'codex', b'eburon-codebox'), (b'OpenAI', b'Eburon AI'), (b'openai', b'eburon'), (b'com.openai.codex', b'dev.eburon.codebox')]
-c = 0
-for o, n in repls:
-    cnt = data.count(o)
-    if cnt: data = data.replace(o, n); c += cnt
-if c:
-    with open(asar, 'wb') as f: f.write(data)
-PYEOF
-  find "/Applications/Eburon Codebox.app/Contents/Resources" -name "*.json" -path "*/lproj/*" 2>/dev/null | while read f; do
-    sed -i '' 's/Codex/Eburon Codebox/g; s/codex/eburon-codebox/g; s/OpenAI/Eburon AI/g' "$f" 2>/dev/null || true
-  done
   codesign --force --deep --sign - "/Applications/Eburon Codebox.app" 2>/dev/null
   success "Eburon Codebox.app configured"
 }
