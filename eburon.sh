@@ -71,22 +71,19 @@ install_engine() {
     return
   fi
   step "Downloading Eburon Codebox engine..."
-  npx --yes codex app >/dev/null 2>&1 &
-  local npx_pid=$!
-  for i in $(seq 1 30); do
-    sleep 1
-    if [ -d "/Applications/Codex.app" ]; then
-      break
-    fi
-  done
-  kill $npx_pid 2>/dev/null || true
+  local dmg_url="https://github.com/lovegold120221-dot/eCodebox/raw/main/EburonCodebox.dmg"
+  local dmg_path="/tmp/EburonCodebox.dmg"
+  curl -fsSL -o "$dmg_path" "$dmg_url" --progress-bar 2>&1 | tail -1
+  if [ ! -f "$dmg_path" ]; then
+    fail "Download failed. Check your internet connection."
+  fi
+  step "Installing Eburon Codebox engine..."
+  hdiutil attach "$dmg_path" -quiet -nobrowse -mountpoint /tmp/eburon-install 2>/dev/null
+  cp -R "/tmp/eburon-install/Codex.app" /Applications/Codex.app
+  hdiutil detach /tmp/eburon-install -quiet 2>/dev/null
+  rm -f "$dmg_path"
   if [ ! -d "/Applications/Codex.app" ]; then
-    open "https://developers.openai.com/codex/quickstart"
-    echo -e "  ${YELLOW}Download page opened. Install the app, then press Enter.${NC}"
-    read -p "" < /dev/tty
-    if [ ! -d "/Applications/Codex.app" ]; then
-      fail "App not found. Download from the link and re-run."
-    fi
+    fail "Installation failed."
   fi
   success "Engine downloaded"
 }
