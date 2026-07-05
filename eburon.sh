@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-# Redirect stdin to terminal for read prompts (ignore if not available)
-exec < /dev/tty 2>/dev/null || true
 
 # ═══════════════════════════════════════════════════════════════
 # Eburon Codebox — One-Click Installer
